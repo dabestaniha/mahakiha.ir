@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fa" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/assets/tailwindcss.js"></script>
+    <script src="/assets/jquery.min.js"></script>
+
+    <title>Delete Account</title>
+</head>
+<body>
+<div class="flex mx-auto flex-col justify-center items-center gap-4 mt-16 block max-w-xl p-6 bg-white border border-white-200 rounded-lg shadow-md dark:bg-white-800 dark:border-white-700 dark:hover:bg-white-700">
+    <p class="text-xl font-black text-white-900">Delete Your Account?</p>
+    <p class="p-1 text-lg">
+        You're deleting your account.
+        <br>
+        Should be aware after this operation, you don't have any data in yours account, and you must log in for use this service.
+    </p>
+    <form method="POST" action="" class="pt-5 w-full">
+        <div class="step-1">
+            <label for="email" class="flex flex-col gap-2 items-baseline text-right">
+                Please write your email address.
+                <input name="email" id="email" type="text" placeholder="email address"
+                       class="flex self-start w-1/2 h-48px px-3 py-3 placeholder-gray-600 text-black text-18px flex-none border rounded focus:border-gray-400 outline-none">
+            </label>
+        </div>
+
+        <div class="step-2 hidden">
+            <label for="code" class="flex flex-col gap-2 items-baseline">
+                Please write your code.
+                <input name="code" id="code" type="number" minlength="4" maxlength="4" min="1000"
+                       max="9999" placeholder="verify code"
+                       class="flex self-start h-48px w-1/3 px-3 py-3 placeholder-gray-600 text-black text-18px flex-none border rounded focus:border-gray-400 outline-none">
+            </label>
+        </div>
+
+        <div class="step-3 hidden">
+
+            <label for="cause" class="flex flex-col gap-2 items-baseline">
+                Please write your reason.
+                <textarea name="cause" id="cause" placeholder="cause"
+                          class="flex w-full self-start h-48px px-3 py-3 placeholder-gray-600 text-black text-18px flex-none border rounded focus:border-gray-400 outline-none"></textarea>
+            </label>
+        </div>
+
+        <div class="finish w-full flex justify-center hidden">
+            <p class="text-xl font-black text-white-900">
+                Your account deleted.
+            </p>
+        </div>
+
+        <div class="flex w-full mt-5 justify-end">
+            <button type="button"
+                    class="flex bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">
+                Receive verify code
+            </button>
+        </div>
+    </form>
+</div>
+<script>
+    var BASEURL = 'https://api.mahakiha.ir';
+    $(function () {
+        let checkStepActive = function () {
+            return !this.el.hasClass('hidden');
+        }
+        let activeStep = function (steps = [step1, step2, step3, finish]) {
+            for (var index in steps) {
+                steps[index].el.addClass('hidden')
+            }
+            this.el.removeClass('hidden')
+        }
+        let isValidStep1 = function () {
+            let email = this.el.find('#email')
+            if (!/^\S+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/.test(email.val())) {
+                alert('Please write correct email address.');
+                return false;
+            }
+            return true;
+        }
+
+        let isValidStep2 = function () {
+            let verifyCode = this.el.find('#code')
+            if (!/\d{5}/.test(verifyCode.val())) {
+                alert('Please write correct code.');
+                return false;
+            }
+            return true;
+        }
+
+        let isValidStep3 = function () {
+            let cause = this.el.find('#cause')
+            if (cause.val().trim() == '') {
+                alert('Please write reason.');
+                return false;
+            }
+            return true;
+        }
+
+        let getCodeRequest = function () {
+            return $.ajax({
+                type: "POST",
+                data: this.el.find(':input').serialize(),
+                url: BASEURL + '/user/activation',
+                headers: {Authorization: 'GuestAccess', Accept: '*/*'},
+            })
+        }
+
+        let verifyRequest = function () {
+            return $.ajax({
+                type: "POST",
+                url: BASEURL + '/user/activatvate',
+                data: this.el.find(':input').serialize() + '&' + step1.el.find(':input').serialize(),
+                headers: {Authorization: 'GuestAccess', Accept: '*/*'}
+            });
+        }
+
+        let deleteAccountRequest = function () {
+            return $.ajax({
+                type: "GET",
+                url: BASEURL + "/user/delete",
+                data: this.el.find(':input').serialize(),
+                headers: {Authorization: this.data.token, Accept: '*/*'},
+            })
+        }
+
+        var $el = $('button');
+        let step1 = {el: $('.step-1'), isActive: checkStepActive, active: activeStep, isValid: isValidStep1, request: getCodeRequest}
+        let step2 = {el: $('.step-2'), isActive: checkStepActive, active: activeStep, isValid: isValidStep2, request: verifyRequest}
+        let step3 = {el: $('.step-3'), isActive: checkStepActive, active: activeStep, isValid: isValidStep3, request: deleteAccountRequest}
+        let finish = {el: $('.finish'), active: activeStep}
+
+        $el.click(function () {
+            if (step1.isActive() && step1.isValid()) {
+                step1.request().done(function( response, textStatus, jqXHR ) {
+                    step2.active();
+                    $el.text('Verify mail');
+                })
+                return;
+            }
+
+            if (step2.isActive() && step2.isValid()) {
+                step2.request().done(function (response) {
+                    step3.active();
+                    $el.text('Delete account')
+                    step3.data = {user_id: response.data.user_id, token: response.data.token}
+                }).fail(function (response) {
+                    alert('Your code is incorrect.');
+                })
+                return;
+            }
+
+            if (step3.isActive() && step3.isValid()) {
+                step3.request().done(function (response) {
+                    finish.active();
+                    $el.addClass('hidden')
+                })
+            }
+
+        });
+    });
+</script>
+</body>
+</html>
